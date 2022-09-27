@@ -56,14 +56,11 @@
 //! For $Sig$, $(n S\_i^2) / n\_i$ can be computed on 128-bit, as well as $S^2$.
 
 use hytra::TrAdder;
-use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
 use itertools::izip;
 use ndarray::{s, Array1, Array2, Array3, ArrayView2, ArrayViewMut2, Axis, Zip};
 use num_traits::{Bounded, PrimInt, Signed, WrappingAdd, Zero};
 use rayon::prelude::*;
 use std::convert::TryInto;
-use std::thread;
-use std::time::Duration;
 
 pub trait NativeInt: PrimInt + Signed + WrappingAdd + Send + Sync {}
 impl<T: PrimInt + Signed + WrappingAdd + Send + Sync> NativeInt for T {}
@@ -227,33 +224,12 @@ where
 
         // Display bar if about 8E9 updates
         if n_updates > (1 << 33) {
-            crossbeam_utils::thread::scope(|s| {
-                // spawn progress bar thread
-                s.spawn(move |_| {
-                    let pb = ProgressBar::new(n_it);
-                    pb.set_style(
-                        ProgressStyle::default_spinner()
-                            .template("{msg} [{elapsed_precise}] [{bar:40.cyan/blue}] (ETA {eta})")
-                            .on_finish(ProgressFinish::AndClear),
-                    );
-                    pb.set_message("Update SNR...");
-                    let mut x = 0;
-                    while x < n_it {
-                        pb.set_position(x);
-                        thread::sleep(Duration::from_millis(50));
-                        x = acc_ref.get();
-                    }
-                    pb.finish_and_clear();
-                });
-
-                // spawn computing thread
-                let res: Result<(), SnrError> = s
-                    .spawn(move |_| self.update_internal(traces, y, acc_ref))
-                    .join()
-                    .unwrap();
-                res
-            })
-            .unwrap()
+            crate::utils::with_progress(
+                |it_cnt| self.update_internal(traces, y, it_cnt),
+                n_it,
+                0,
+                "Update SNR",
+            )
         } else {
             self.update_internal(traces, y, acc_ref)
         }
