@@ -5,7 +5,8 @@ Changelog
 Not released
 ------------
 
-* Update dependancies and add python 3.10 to CI (#49)
+* Update dependencies and add python 3.10 to CI (#49)
+* Fix freeze when there is an error in large SNR computations (i.e., when n_vars*n_samples*n_traces > 2**33).
 
 v0.4.2 (2022/05/31)
 -------------------

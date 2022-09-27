@@ -216,9 +216,6 @@ where
     ) -> Result<(), SnrError> {
         let x = traces;
 
-        let acc: TrAdder<u64> = TrAdder::new();
-        let acc_ref = &acc;
-
         let n_it = (self.sum.shape()[0] as u64 + 3) / 4;
         let n_updates = x.shape()[0] as u64 * x.shape()[1] as u64 * self.np as u64;
 
@@ -227,11 +224,11 @@ where
             crate::utils::with_progress(
                 |it_cnt| self.update_internal(traces, y, it_cnt),
                 n_it,
-                0,
                 "Update SNR",
             )
         } else {
-            self.update_internal(traces, y, acc_ref)
+            let acc: TrAdder<u64> = TrAdder::new();
+            self.update_internal(traces, y, &acc)
         }
     }
 
