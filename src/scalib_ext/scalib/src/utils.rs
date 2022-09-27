@@ -12,8 +12,9 @@ where
     if n_iter < min_iter_pb {
         f(&it_cnt)
     } else {
+        let finished = std::sync::atomic::AtomicBool::new(false);
         crossbeam_utils::thread::scope(|s| {
-            let finished = std::sync::atomic::AtomicBool::new(false);
+            let finished_ref = &finished;
             let it_cnt_ref = &it_cnt;
             // spawn progress bar thread
             let pb_thread_handle = s.spawn(move |_| {
@@ -24,7 +25,7 @@ where
                         .on_finish(ProgressFinish::AndClear),
                 );
                 pb.set_message(pb_msg);
-                while !finished.load(std::sync::atomic::Ordering::Relaxed) {
+                while !finished_ref.load(std::sync::atomic::Ordering::Relaxed) {
                     pb.set_position(it_cnt_ref.get());
                     thread::park_timeout(Duration::from_millis(50));
                 }
@@ -33,6 +34,7 @@ where
 
             // spawn computing thread
             let res = s.spawn(move |_| f(it_cnt_ref)).join().unwrap();
+            finished_ref.store(true, std::sync::atomic::Ordering::Relaxed);
             pb_thread_handle.thread().unpark();
             res
         })
