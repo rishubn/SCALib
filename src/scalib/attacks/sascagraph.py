@@ -89,8 +89,14 @@ class SASCAGraph:
     - `PROPERTY w = x^y^z`: declares a bitwise XOR property. There can be any
       number of operands with at most one public operand. If there is a public
       operand, there must be exactly two operands.
-    - `PROPERTY x = x&y`: declares a bitwise AND property. There must be
+    - `PROPERTY w = x+y+z`: declares a modular sum property. There can be any
+      number of operands with at most one public operand. If there is a public
+      operand, there must be exactly two operands.
+    - `PROPERTY z = x&y`: declares a bitwise AND property. There must be
       exactly two operands, with at most one public operand.
+    - `PROPERTY z = x*y`: declares a modular product property. There must be
+      exactly two operands, with at most one public operand.
+    - `PROPERTY x = y`: declares an alias between two variables.
     - `LOOKUP x = t[y]`: declares a LOOKUP property (`y` is the lookup of the
       table `t` at index `y`). No public variable is allowed in this property.
     - `TABLE` t = [0, 3, 2, 1]`: Declares a table that can be used in a LOOKUP.
@@ -285,7 +291,7 @@ class SASCAGraph:
         for property in self.properties_:
             if property["output"] in self.publics_:
                 raise ValueError(
-                    "In current implementation public vars can only be ^ or & operands.\n"
+                    "In current implementation public vars can only be operands.\n"
                     + "Cannot assign "
                     + property["output"]
                 )
@@ -429,6 +435,7 @@ class SASCAGraphParser:
         self._build_var_set()
         self._build_tables()
         self._build_properties()
+        self._raise_errors()
 
     def _build_properties(self):
         for prop_kind, res, inputs in self.prop_decls:
@@ -451,7 +458,6 @@ class SASCAGraphParser:
                 )
             else:
                 self.properties.append(prop)
-        self._raise_errors()
 
     def _build_tables(self):
         for tab_name, init in self.table_decls:
