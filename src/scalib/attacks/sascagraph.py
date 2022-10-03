@@ -2,6 +2,7 @@ import numpy as np
 from functools import reduce
 from scalib import _scalib_ext
 from scalib.config.threading import _get_threadpool
+from . import utils
 
 
 class SASCAGraph:
@@ -24,9 +25,14 @@ class SASCAGraph:
     replicated `n` times (once for each execution), as well as all the
     relationships that relate at least on `MULTI` variable.
 
-    Relationships between variables are bitwise XOR, bitwise AND, and lookup
-    table. A lookup table can describe any function that maps a single variable
-    to another variable.
+    Relationships between variables are:
+    - bitwise XOR (e.g. `z = x ^ y ^ w`)
+    - bitwise AND (e.g. `z = x & y & w`)
+    - modular addition (e.g. `z = x + y + w`)
+    - modular multiplication (e.g. `z = x * y`)
+    - lookup table, that can describe any function that maps a single variable
+      to another variable (e.g. `z = t[x]`).
+
     Description of `nc`, the variables, and the relationships is given in a
     text format specified below.
 
@@ -97,7 +103,7 @@ class SASCAGraph:
     - `PROPERTY z = x*y`: declares a modular product property. There must be
       exactly two operands, with at most one public operand.
     - `PROPERTY x = y`: declares an alias between two variables.
-    - `LOOKUP x = t[y]`: declares a LOOKUP property (`y` is the lookup of the
+    - `PROPERTY x = t[y]`: declares a LOOKUP property (`y` is the lookup of the
       table `t` at index `y`). No public variable is allowed in this property.
     - `TABLE` t = [0, 3, 2, 1]`: Declares a table that can be used in a LOOKUP.
       The values provided in the table must belong to the interval [0, nc).
@@ -132,7 +138,33 @@ class SASCAGraph:
             self.set_table(tab_name, init)
         self.properties_ = self.graph.properties
         self.var_ = self.graph.var
-        self.publics_ = {}
+        self._clean_aliases()
+
+    def _clean_aliases(self):
+        aliases = [
+            (prop["inputs"][0], prop["output"])
+            for prop in self.properties_ if prop["property"] == "ALIAS"
+            ]
+        self.properties_ = [prop for prop in self.properties_ if prop["property"] != "ALIAS"]
+        equiv_sets = utils.disjoint_sets(aliases)
+        self._var_map = dict()
+        self._var_list = list()
+        alias_set = set(x for al in aliases for x in al)
+        equiv_sets.extend(set([v]) for v in self.var_ if v not in alias_set)
+        for i, var_set in enumerate(equiv_sets):
+            v = self.var_[next(iter(var_set))]
+            if not all(self.var_[var]["para"] == v["para"] for var in var_set):
+                raise SASCAGraphError(
+                        "The following variables are aliased, but are not all SINGLE or MULTI: "
+                        + ', '.join(var_set)
+                        + '.'
+                        )
+            for var in var_set:
+                self._var_map[var] = i
+            self._var_list.append(v)
+
+    def _get_var(self, var_name):
+        return self._var_list[self._var_map[var_name]]
 
     def set_init_distribution(self, var, distribution):
         r"""Sets initial distribution of a variables.
@@ -145,7 +177,7 @@ class SASCAGraph:
             Distribution to assign. If `var` is SINGLE, must be of shape `(nc,)`
             or `(1,nc)`. If `var` is MULTI, must be of shape `(n,nc)`.
         """
-        para = self.var_[var]["para"]
+        para = self._get_var(var)["para"]
         if para:
             if distribution.shape != (self.n_, self.nc_):
                 raise ValueError(f"Distribution for variable {var} has wrong shape")
@@ -155,7 +187,7 @@ class SASCAGraph:
             elif distribution.shape != (1, self.nc_):
                 raise ValueError(f"Distribution for variable {var} has wrong shape")
 
-        self.var_[var]["initial"] = distribution
+        self._get_var(var)["initial"] = distribution
 
     def get_distribution(self, var):
         r"""Returns the current distribution of a variable `var`. Must be
@@ -175,7 +207,7 @@ class SASCAGraph:
         """
         if not self.solved_:
             raise Exception("SASCAGraph not solved yet")
-        return self.var_[var]["current"]
+        return self._get_var(var)["current"]
 
     def set_public(self, var, values):
         r"""Marks a variable `var` as public with provided `values`.
@@ -190,7 +222,7 @@ class SASCAGraph:
             For SINGLE variables, public value for all executions. Must be an
             integer.
         """
-        if self.var_[var]["para"]:
+        if self._get_var(var)["para"]:
             if values.shape != (self.n_,):
                 raise ValueError("Public data has wrong shape")
             if values.dtype != np.uint32:
@@ -203,8 +235,7 @@ class SASCAGraph:
             # 0 lower bound is given by np.uint32 dtype
             raise ValueError("Values is out of [0, nc) range")
         # remove from the standard variables and move it to publics
-        del self.var_[var]
-        self.publics_[var] = values
+        self._get_var(var)["public"] = values
 
     def set_table(self, table, values):
         r"""Defines a `table`'s content.
@@ -289,42 +320,7 @@ class SASCAGraph:
         # Check also that the conditions on the inputs are supported by the Rust
         # backend.
         for property in self.properties_:
-            if property["output"] in self.publics_:
-                raise ValueError(
-                    "In current implementation public vars can only be operands.\n"
-                    + "Cannot assign "
-                    + property["output"]
-                )
-            if len([inp for inp in property["inputs"] if inp in self.publics_]) > 1:
-                raise ValueError(
-                    "In current implementation there can only be one public operand."
-                )
-            for inp in property["inputs"]:
-                if inp in self.publics_ and property["property"] == "LOOKUP":
-                    raise ValueError(
-                        "In current implementation public vars can only be ^ or & operands.\n"
-                        + "Cannot use "
-                        + inp
-                        + " in table lookup."
-                    )
-            if not any(
-                v in self.var_ and self.var_[v]["para"]
-                for v in property["inputs"] + [property["output"]]
-            ):
-                raise ValueError(
-                    "In current implementation, there must be at least one PARA var per property."
-                )
-
-            # number of VAR MULTI in the PROPERTY
-            npara = len(
-                list(
-                    filter(
-                        lambda x: (x in self.var_) and self.var_[x]["para"],
-                        [property["output"]] + property["inputs"],
-                    )
-                )
-            )
-
+            self._check_property(property)
             if property["property"] == "LOOKUP":
                 property["func"] = LOOKUP
                 # get the table into the function
@@ -332,69 +328,57 @@ class SASCAGraph:
                 # set edge to input and output
                 self._share_edge(property, property["output"])
                 self._share_edge(property, property["inputs"][0])
-
             elif property["property"] in property_map_binary.keys():
                 op, op_cst = property_map_binary[property["property"]]
                 # If no public inputs
-                if all(x in self.var_ for x in property["inputs"]):
+                if all("public" not in self._get_var(var) for var in property["inputs"]):
                     property["func"] = op
                     self._share_edge(property, property["output"])
                     for i in property["inputs"]:
                         self._share_edge(property, i)
-
-                # if and with public input
+                # two inputs, one of them is public
                 elif len(property["inputs"]) == 2:
                     # OP with one public
                     property["func"] = op_cst
-
                     self._share_edge(property, property["output"])
-
                     # which of both inputs is public
-                    if property["inputs"][0] in self.var_:
-                        i = (0, 1)
-                    elif property["inputs"][1] in self.var_:
+                    if "public" in self._get_var(property["inputs"][0]):
                         i = (1, 0)
+                    elif "public" in self._get_var(property["inputs"][1]):
+                        i = (0, 1)
                     else:
                         assert False
-
                     # share edge with non public input
                     self._share_edge(property, property["inputs"][i[0]])
-
                     # merge public input in the property
-                    property["values"] = self.publics_[property["inputs"][i[1]]]
-
+                    property["values"] = self._get_var(property["inputs"][i[1]])["public"]
             elif property["property"] in property_map_nary.keys():
                 op, op_cst = property_map_nary[property["property"]]
                 # if no inputs are public
-                if all(x in self.var_ for x in property["inputs"]):
+                if all("public" not in self._get_var(var) for var in property["inputs"]):
                     # OP with no public
                     property["func"] = op
-
                     # share edge with the output
                     self._share_edge(property, property["output"])
-
                     # share edge with all the inputs
                     for i in property["inputs"]:
                         self._share_edge(property, i)
-
                 elif len(property["inputs"]) == 2:
                     # OP with one public
                     property["func"] = op_cst
-
                     # which of both inputs is public
-                    if property["inputs"][0] in self.var_:
-                        i = (0, 1)
-                    elif property["inputs"][1] in self.var_:
+                    if "public" in self._get_var(property["inputs"][0]):
                         i = (1, 0)
+                    elif "public" in self._get_var(property["inputs"][1]):
+                        i = (0, 1)
                     else:
                         assert False
-
                     # share edges with variables
                     self._share_edge(property, property["output"])
                     self._share_edge(property, property["inputs"][i[0]])
 
                     # merge public into the property
-                    property["values"] = self.publics_[property["inputs"][i[1]]]
+                    property["values"] = self._get_var(property["inputs"][i[1]])["public"]
 
                 else:
                     key = property["property"]
@@ -412,6 +396,31 @@ class SASCAGraph:
             else:
                 v["current"] = np.ones((1, self.nc_))
 
+    def _check_property(self, prop):
+        if "public" in self._get_var(prop["output"]):
+            raise ValueError(
+                "In current implementation public vars can only be operands.\n"
+                + f"Cannot assign {prop['output']}."
+            )
+        if len([inp for inp in prop["inputs"] if "public" in self._get_var(inp)]) > 1:
+            raise ValueError(
+                "In current implementation there can only be one public operand."
+            )
+        for inp in prop["inputs"]:
+            if "public" in self._get_var(inp) and prop["property"] == "LOOKUP":
+                raise ValueError(
+                    "In current implementation public vars cannot be table operands.\n"
+                    + f"Cannot use {inp} in table lookup."
+                )
+        if not any(
+                "public" not in self._get_var(v) and self.var_[v]["para"]
+                for v in prop["inputs"] + [prop["output"]]
+        ):
+            raise ValueError(
+                "In current implementation, there must be at least one "
+                + "non-public MULTI var per property."
+            )
+
 
 class SASCAGraphError(Exception):
     pass
@@ -425,10 +434,17 @@ class SASCAGraphParser:
         self.var_decls = []
         self.prop_decls = []
         self.table_decls = []
+        self._errors = []
+        # int
+        self.nc = None
+        # dict(str -> dict("para": bool, "neighboors": list()))
         self.var = {}
+        # dict(str -> Union[None, np.array((nc,), dtype=np.uint32)])
         self.tables = {}
+        # list(dict(
+        #     "property": str, "output": str, "neighboors": list(), "inputs": list(str), "tab" ?
+        # ))
         self.properties = []
-        self.errors = []
 
         self._parse_description(description)
         self._get_nc()
@@ -447,13 +463,13 @@ class SASCAGraphParser:
             if prop_kind == "LOOKUP":
                 tab = inputs[0]
                 if tab not in self.tables:
-                    self.errors.append(f"Table '{tab}' not declared.")
+                    self._errors.append(f"Table '{tab}' not declared.")
                 prop["tab"] = tab
                 inputs = inputs[1:]
             prop["inputs"] = inputs
             missing_vars = [v for v in inputs + [res] if v not in self.var]
             if missing_vars:
-                self.errors.extend(
+                self._errors.extend(
                     [f"Variable '{v}' not declared." for v in missing_vars]
                 )
             else:
@@ -462,7 +478,7 @@ class SASCAGraphParser:
     def _build_tables(self):
         for tab_name, init in self.table_decls:
             if tab_name in self.tables:
-                self.errors.append(f"Table {tab_name} multiply declared.")
+                self._errors.append(f"Table {tab_name} multiply declared.")
             elif init is None:
                 self.tables[tab_name] = None
             else:
@@ -472,18 +488,18 @@ class SASCAGraphParser:
     def _build_var_set(self):
         for key, para in self.var_decls:
             if key in self.var:
-                self.errors.append(f"Variable {key} multiply declared.")
+                self._errors.append(f"Variable {key} multiply declared.")
             else:
                 self.var[key] = {"para": para == "MULTI", "neighboors": []}
         self._raise_errors()
 
     def _get_nc(self):
         if len(self.nc_decls) > 1:
-            self.errors.append("NC appears multiple times, can only appear once.")
+            self._errors.append("NC appears multiple times, can only appear once.")
         elif len(self.nc_decls) == 0:
-            self.errors.append("NC not declared.")
+            self._errors.append("NC not declared.")
         elif self.nc_decls[0] not in range(1, 2**16 + 1):
-            self.errors.append("NC not in admissible range [1, 2^16].")
+            self._errors.append("NC not in admissible range [1, 2^16].")
         else:
             self.nc = self.nc_decls[0]
         self._raise_errors()
@@ -497,7 +513,7 @@ class SASCAGraphParser:
                 try:
                     self._parse_sasca_graph_line(line)
                 except SASCAGraphError as e:
-                    self.errors.append(
+                    self._errors.append(
                         f"Syntax Error at line {i}:'{line}'\n\t{e.args[0]}"
                     )
         self._raise_errors()
@@ -548,7 +564,13 @@ class SASCAGraphParser:
                 raise SASCAGraphError("Missing losing bracket of lookup expression.")
             inputs = [tab, in_[:-1]]
         else:
-            raise SASCAGraphError("Unknown PROPERTY expression.")
+            try:
+                op = self._parse_sasca_ident(prop)
+            except SASCAGraphError:
+                raise SASCAGraphError("Unknown PROPERTY expression.")
+            else:
+                prop_kind = "ALIAS"
+                inputs = [op]
         inputs = list(map(self._parse_sasca_ident, inputs))
         self.prop_decls.append((prop_kind, res, inputs))
 
@@ -604,13 +626,13 @@ class SASCAGraphParser:
             raise SASCAGraphError(f"Unknown directive '{tag}'.")
 
     def _raise_errors(self):
-        if self.errors:
-            if len(self.errors) > self.MAX_DISP_ERRORS:
+        if self._errors:
+            if len(self._errors) > self.MAX_DISP_ERRORS:
                 final_comment = "\n[...] {} other errors not shown.".format(
-                    len(self.errors) - self.MAX_DISP_ERRORS
+                    len(self._errors) - self.MAX_DISP_ERRORS
                 )
             else:
                 final_comment = ""
             raise SASCAGraphError(
-                "\n".join(self.errors[: self.MAX_DISP_ERRORS]) + final_comment
+                "\n".join(self._errors[: self.MAX_DISP_ERRORS]) + final_comment
             )

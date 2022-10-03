@@ -19,6 +19,8 @@ def test_table():
             TABLE table
             VAR MULTI x
             VAR MULTI y
+            VAR MULTI z
+            PROPERTY x=z
             NC {nc}
             """
     graph = SASCAGraph(graph, n)
@@ -34,6 +36,9 @@ def test_table():
         distri_y_ref[:, y] = distri_x[:, x]
 
     assert np.allclose(distri_y_ref, distri_y)
+
+    distri_z = graph.get_distribution("z")
+    assert np.allclose(distri_x, distri_z)
 
 
 def test_and_public():
