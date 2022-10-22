@@ -41,6 +41,7 @@ maintained in that context.
 Contributions and Issues
 ========================
 
+Contributions welcome !
 See contribution_ and `DEVELOP.rst <DEVELOP.rst>`_.
 
 .. _contribution: https://scalib.readthedocs.io/en/stable/index.html#contributions-and-issues

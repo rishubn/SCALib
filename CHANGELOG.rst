@@ -6,6 +6,7 @@ Not released
 ------------
 
 * Update dependancies and add python 3.10 to CI (#49)
+* Allow LDA to behave like simple pooled gaussian templates (#22)
 
 v0.4.2 (2022/05/31)
 -------------------
