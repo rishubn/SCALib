@@ -16,7 +16,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python: ["3.7", "3.10"]
+                python: ["3.8", "3.10"]
         steps:
             - uses: actions/checkout@v3
             - uses: actions/cache@v3
@@ -46,7 +46,7 @@ jobs:
             - uses: actions/checkout@v3
             - uses: actions/setup-python@v3
               with:
-                  python-version: "3.7"
+                  python-version: "3.8"
             - name: wheels Windows ${{ matrix.vers }}
               uses: pypa/cibuildwheel@v2.5.0
               env:
@@ -55,7 +55,7 @@ jobs:
                   CIBW_BUILD_VERBOSITY: "1"
                   # add RUSTFLAGS so that deps build with avx2, needed due to likely bug in setuptools_rust
                   CIBW_ENVIRONMENT: 'RUST_BACKTRACE=full SCALIB_AVX2=1 RUSTFLAGS="-C target-feature=+avx2"'
-                  CIBW_BUILD: "cp37-win_amd64"
+                  CIBW_BUILD: "cp38-win_amd64"
                   # I don't know how to make both normal and doctring tests
                   # work with only one command, so I use shell &&.
                   CIBW_TEST_COMMAND: pytest -ra {project}/tests && pytest -ra --pyargs --doctest-modules scalib
@@ -80,7 +80,7 @@ jobs:
             CIBW_BUILD_VERBOSITY: "1"
             # add RUSTFLAGS so that deps build with avx2, needed due to likely bug in setuptools_rust
             CIBW_ENVIRONMENT: 'RUST_BACKTRACE=full CARGO_TARGET_DIR=/host${{ github.workspace }}/cargo_build CARGO_HOME=/host${{ github.workspace }}/cargo_home SCALIB_AVX2=1 RUSTFLAGS="-C target-feature=+avx2"'
-            CIBW_BUILD: "cp37-manylinux_x86_64*"
+            CIBW_BUILD: "cp38-manylinux_x86_64*"
             # I don't know how to make both normal and doctring tests work with only one command,
             # so I use shell &&.
             CIBW_TEST_COMMAND: pytest -ra {project}/tests && pytest -ra --pyargs --doctest-modules scalib
@@ -96,7 +96,7 @@ jobs:
                   key: linux-wheel-cache-rust-build-cargo-v0-${{ matrix.vers }}
             - uses: actions/setup-python@v3
               with:
-                  python-version: "3.7"
+                  python-version: "3.8"
             - name: wheels Linux ${{ matrix.vers }}
               uses: pypa/cibuildwheel@v2.5.0
             - uses: actions/upload-artifact@v2

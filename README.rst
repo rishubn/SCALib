@@ -29,6 +29,15 @@ See install_ for details.
  
 .. _install: https://scalib.readthedocs.io/en/stable/index.html#install
 
+Dependencies upgrade policy
+===========================
+
+For python and python packages, we follow NEP29_.
+
+For rust: latest stable version. For OS: manylinux_ 2014 and recent-ish Windows (TBD).
+
+.. _NEP29: https://numpy.org/neps/nep-0029-deprecation_policy.html
+.. _manylinux: https://github.com/pypa/manylinux
 
 About us
 ========
