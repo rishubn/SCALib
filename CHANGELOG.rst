@@ -7,6 +7,12 @@ Not released
 
 * Optimize bitwise AND in SASCA: O(nc*log(nc)) instead of O(nc^2).
 * Bitwise AND in SASCA: use a more correct law for computing input distribution.
+* Update dependancies and add python 3.10 to CI (#49)
+* Optimize bitwise AND in SASCA: O(nc*log(nc)) instead of O(nc^2).
+* SASCA: add `SASCAGraph.sanity_check`.
+* SASCA: allow tables to not be bijective.
+* SASCA: support NOT gate.
+* SASCA: allow multiple public operands.
 
 v0.4.2 (2022/05/31)
 -------------------
