@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 mod belief_propagation;
+mod factor_graph;
 mod lda;
 mod ranking;
 mod snr;
