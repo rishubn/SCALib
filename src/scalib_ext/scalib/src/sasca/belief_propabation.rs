@@ -276,9 +276,10 @@ fn factor_gen_and<'a>(
     invert_op: &'a [bool],
     clear_incoming: bool,
 ) -> impl Iterator<Item = Distribution> + 'a {
-    // Special case for single-input AND 
+    // Special case for single-input AND
     if factor.has_res & (factor.edges.len() == 2) {
-        return dest.iter()
+        return dest
+            .iter()
             .map(|var| {
                 let i = factor.edges.get_index_of(var).unwrap();
                 let mut distr = if clear_incoming {
@@ -286,14 +287,14 @@ fn factor_gen_and<'a>(
                 } else {
                     belief_from_var[factor.edges[1 - i]].clone()
                 };
-                if invert_op[1-i] {
+                if invert_op[1 - i] {
                     distr.not();
                 }
                 if i == 0 {
                     // dest is the result of the AND
                     distr.and_cst(pub_red);
                 } else {
-                    // dest is an operand of the AND, original distr is result 
+                    // dest is an operand of the AND, original distr is result
                     distr.inv_and_cst(pub_red);
                 }
                 if invert_op[i] {
@@ -316,7 +317,7 @@ fn factor_gen_and<'a>(
         // constant is operand
         acc.cumt();
     } else {
-        // constant is result 
+        // constant is result
         acc.opandt();
     }
     let mut taken_dest = vec![false; factor.edges.len()];
@@ -332,6 +333,7 @@ fn factor_gen_and<'a>(
         } else {
             belief_from_var[*e].clone()
         };
+        d.as_full();
         assert!(d.is_full());
         if factor.has_res && (i == 0) {
             d.opandt();
@@ -350,7 +352,11 @@ fn factor_gen_and<'a>(
     return (0..dest.len())
         .map(|i| {
             let mut res = acc.clone();
-            res.multiply((0..dest.len()).filter(|j| *j != i).map(|j| &dest_transformed[j]));
+            res.multiply(
+                (0..dest.len())
+                    .filter(|j| *j != i)
+                    .map(|j| &dest_transformed[j]),
+            );
             // Inverse transform
             if factor.has_res && (dest[i] == *factor.edges.get_index(0).unwrap().0) {
                 res.cumti();
@@ -390,7 +396,8 @@ fn factor_xor<'a>(
 ) -> impl Iterator<Item = Distribution> + 'a {
     // Special case for single-input XOR
     if factor.edges.len() == 2 {
-        return dest.iter()
+        return dest
+            .iter()
             .map(|var| {
                 let i = factor.edges.get_index_of(var).unwrap();
                 let mut distr = if clear_incoming {

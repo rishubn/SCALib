@@ -4,8 +4,10 @@ import numpy as np
 import os
 import copy
 
+
 def normalize_distr(x):
     return x / x.sum(axis=-1, keepdims=True)
+
 
 def test_table():
     """
@@ -108,8 +110,8 @@ def test_not():
     distri_y_bp = bp_state.get_distribution("y")
 
     t = np.array([1, 0])
-    distri_x_ref = normalize_distr(distri_x*distri_y[0,t][np.newaxis,:])
-    distri_y_ref = normalize_distr(distri_y*distri_x[0,t][np.newaxis,:])
+    distri_x_ref = normalize_distr(distri_x * distri_y[0, t][np.newaxis, :])
+    distri_y_ref = normalize_distr(distri_y * distri_x[0, t][np.newaxis, :])
 
     assert np.allclose(distri_x_ref, distri_x_bp)
     assert np.allclose(distri_y_ref, distri_y_bp)
@@ -146,6 +148,31 @@ def test_and_public():
         distri_y_ref[np.arange(n), y] += distri_x[np.arange(n), x]
 
     assert np.allclose(distri_y_ref, distri_y)
+
+
+def test_and_public2():
+    nc = 2
+    n = 1
+    graph = f"""
+        NC {nc}
+        VAR MULTI x0
+        VAR MULTI x0_0
+        VAR MULTI x0_1
+        VAR MULTI x1_0
+        VAR MULTI n0_0
+        VAR MULTI r
+
+        PROPERTY x0 = x0_0 ^ x0_1
+        PROPERTY n0_0 = !x0_0
+        PROPERTY r = x1_0 & n0_0
+    """
+    fg = FactorGraph(graph)
+    bp = BPState(fg, 1)
+    bp.set_evidence("x0", distribution=np.array([[0.5, 0.5]]))
+    bp.set_evidence("n0_0", distribution=np.array([[0.0, 1.0]]))
+    bp.set_evidence("r", distribution=np.array([[0.3, 0.7]]))
+
+    bp.bp_loopy(10)
 
 
 def test_xor_public():
@@ -200,7 +227,9 @@ def test_AND():
     """
 
     def make_distri(nc, n):
-        return normalize_distr(np.random.randint(1, 10000000, (n, nc)).astype(np.float64))
+        return normalize_distr(
+            np.random.randint(1, 10000000, (n, nc)).astype(np.float64)
+        )
 
     cases = [
         (
@@ -277,13 +306,16 @@ def test_AND():
         assert np.allclose(distri_x_ref, distri_x)
         assert np.allclose(distri_y_ref, distri_y)
 
+
 def test_and_not():
     # Add negation to operands (public or not)
     raise NotImplemented()
 
+
 def test_or_not():
     # Add negation to operands (public or not)
     raise NotImplemented()
+
 
 def test_ADD():
     """
@@ -420,11 +452,11 @@ def test_xor():
     distri_y = (distri_y.T / np.sum(distri_y, axis=1)).T
 
     distri_b = np.random.randint(1, 10000000, (n, nc))
-    distri_b[1,0] = 1.0
-    distri_b[1,1] = 0.0
+    distri_b[1, 0] = 1.0
+    distri_b[1, 1] = 0.0
     distri_b = (distri_b.T / np.sum(distri_b, axis=1)).T
     distri_a = np.random.randint(1, 10000000, (n, nc))
-    distri_a[1,:] = 1.0
+    distri_a[1, :] = 1.0
     distri_a = (distri_a.T / np.sum(distri_a, axis=1)).T
 
     graph = f"""

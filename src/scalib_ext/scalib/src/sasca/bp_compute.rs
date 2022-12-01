@@ -79,6 +79,13 @@ impl Distribution {
             value: DistrRepr::Uniform,
         }
     }
+    pub fn as_full(&mut self) {
+        if !self.is_full() {
+            let size = self.shape.1 as f64;
+            let arr = ndarray::Array2::<Proba>::from_elem(self.shape, 1. / size);
+            self.value = DistrRepr::Full(arr);
+        }
+    }
     pub fn new_constant(&self, cst: &PublicValue) -> Self {
         if let PublicValue::Multi(cst) = cst {
             assert!(self.multi);
