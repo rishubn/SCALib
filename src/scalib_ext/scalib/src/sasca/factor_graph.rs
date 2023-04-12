@@ -94,7 +94,7 @@ impl ExprFactor {
             Self::AND { vars_neg: _ } => a & b,
             Self::XOR => a ^ b,
             Self::ADD => (((a as u64) + (b as u64)) % (nc as u64)) as ClassVal,
-            Self::MUL => (((a as u64) + (b as u64)) % (nc as u64)) as ClassVal,
+            Self::MUL => (((a as u64) * (b as u64)) % (nc as u64)) as ClassVal,
             Self::NOT | Self::LOOKUP { .. } => unreachable!(),
         }
     }
