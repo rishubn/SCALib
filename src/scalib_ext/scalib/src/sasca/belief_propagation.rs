@@ -829,6 +829,5 @@ fn factor_gen_factor<'a>(
             belief_from_var[*e].reset();
         }
     }
-    dbg!(&res);
     res.into_iter()
 }
