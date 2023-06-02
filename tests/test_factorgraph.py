@@ -1008,13 +1008,10 @@ def test_ADD3():
     bp_state.set_evidence("x0", x0_distr)
     bp_state.set_evidence("x1", x1_distr)
     bp_state.set_evidence("a0", a0_distr)
-    # bp_state.bp_loopy(1, initialize_states=True)
-    #  print(bp_state.debug())
-    distr = []
-    for x in ['x0', 'x1', 'a0']:
-        distr.append(bp_state.get_distribution(x))
-
-    assert not np.isnan(distr).any()
+    bp_state.bp_loopy(50, initialize_states=False)
+    for x in ["x0", "x1", "a0"]:
+        print(bp_state.get_distribution(x))
+        assert not np.isnan(bp_state.get_distribution(x)).any()
 
 
 def test_mix_single_multi():
