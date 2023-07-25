@@ -667,6 +667,11 @@ fn factor_add<'a>(
                     plans,
                     negated_vars[i],
                 );
+                if negated_vars[i] {
+                    for x in fft_e.iter_mut() {
+                        *x = 1.0 / *x;
+                    }
+                }
                 dest_fft.push(fft_e);
             } else {
                 belief_from_var[*e].fft_to(
@@ -678,8 +683,17 @@ fn factor_add<'a>(
                 );
 
                 if acc_fft_init {
-                    acc_fft *= &fft_tmp;
+                    if negated_vars[i] {
+                        acc_fft /= &fft_tmp;
+                    } else {
+                        acc_fft *= &fft_tmp;
+                    }
                 } else {
+                    if negated_vars[i] {
+                        for x in fft_tmp.iter_mut() {
+                            *x = 1.0 / *x;
+                        }
+                    }
                     acc_fft.assign(&fft_tmp);
                     acc_fft_init = true;
                 }
@@ -706,6 +720,11 @@ fn factor_add<'a>(
                     }
                 }
                 let idx = factor.edges.get_index_of(&dest[i]).unwrap();
+                if !negated_vars[idx] {
+                    for x in res.iter_mut() {
+                        *x = 1.0 / *x;
+                    }
+                }
                 let mut acc = uniform_template.clone();
                 acc.ifft(
                     res.view_mut(),
