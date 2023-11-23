@@ -102,6 +102,7 @@ impl Distribution {
             value: DistrRepr::Uniform,
         }
     }
+
     pub fn new_constant(&self, cst: &PublicValue) -> Self {
         if let PublicValue::Multi(cst) = cst {
             assert!(self.multi);
@@ -135,6 +136,7 @@ impl Distribution {
         }
     }
 
+    //  pub fn multiply_distr<'a>(&self, other: &'a Distribution) -> Self {}
     pub fn multiply<'a>(&mut self, factors: impl Iterator<Item = &'a Distribution>) {
         self.multiply_inner(factors, false);
     }

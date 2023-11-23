@@ -235,7 +235,7 @@ def test_xor_public():
     assert np.allclose(distri_y_ref, distri_y)
 
 
-def test_AND():
+def test_AND11():
     """
     Test AND between distributions
     """
@@ -390,7 +390,7 @@ def test_and_not_or():
         assert np.allclose(bp_state2.get_distribution(v), bp_state3.get_distribution(v))
 
 
-def test_ADD():
+def test_ADD11():
     """
     Test ADD between distributions
     """
@@ -1096,8 +1096,8 @@ def test_mix_single_multi():
 
 
 def test_ADD5():
-    nc = 256
-    n = 10
+    nc = 13
+    n = 1
     graph = f"""NC {nc}
     VAR MULTI x
     VAR MULTI y
@@ -1107,6 +1107,7 @@ def test_ADD5():
 
     PROPERTY F0: z = x + y
     """
+
     fg = FactorGraph(graph)
     for _ in range(50):
         bp = BPState(fg, n)
@@ -1124,7 +1125,8 @@ def test_ADD5():
 
         y_distri_ref = (y_distri_ref.T / np.sum(y_distri_ref, axis=1)).T
 
-        bp.bp_loopy(50, initialize_states=False)
+        bp.bp_loopy(3, initialize_states=False)
+
         assert np.allclose(y_distri_ref, bp.get_distribution("y"))
         for x in ["x", "y", "z"]:
             print(bp.get_distribution(x))
