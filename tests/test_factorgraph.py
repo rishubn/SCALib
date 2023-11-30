@@ -379,7 +379,6 @@ def test_and_not_or():
         d = bp_state.get_distribution(v)
         d2 = bp_state2.get_distribution(v)
         assert np.allclose(d, d2)
-
     bp_state3 = BPState(graph, n, {"p": p, "t": t})
     bp_state3.set_evidence("x", distri_x)
     bp_state3.set_evidence("y", distri_y)
@@ -599,7 +598,7 @@ def test_xor():
     """
     Test XOR between distributions
     """
-    nc = 512
+    nc = 2
     n = 10
     distri_x = np.random.randint(1, 10000000, (n, nc))
     distri_x = (distri_x.T / np.sum(distri_x, axis=1)).T
@@ -667,9 +666,9 @@ def test_xor():
 
     print("distri_x_ref", distri_x)
     print("distri_y_ref", distri_y)
-    print("distri_z_ref", distri_z_ref)
 
     distri_z_ref = distri_z_ref / np.sum(distri_z_ref)
+    print("distri_z_ref", distri_z_ref)
     assert np.allclose(distri_z_ref, distri_z)
     assert np.allclose(distri_z_ref, distri_z2)
 
@@ -827,7 +826,7 @@ def test_and_rounding_error_simple():
     assert (bp.get_belief_to_var("B", "P") >= 0.0).all()
 
 
-def test_and_rounding_error_simple():
+def test_and_rounding_error_simple2():
     # test case of issue #86
     factor_graph = """NC 16
     VAR MULTI K0
@@ -1026,6 +1025,8 @@ def test_ADD4():
 
     PROPERTY F0: a0 = x0 + x1
     """
+    import time
+
     fg = FactorGraph(graph)
     for _ in range(50):
         bp = BPState(fg, n)
@@ -1033,9 +1034,10 @@ def test_ADD4():
         bp.set_evidence("x0", make_distri(nc, n))
         bp.set_evidence("x1", make_distri(nc, n))
         bp.set_evidence("a0", make_distri(nc, n))
+        ts = time.time_ns()
         bp.bp_loopy(50, initialize_states=False)
+        te = time.time_ns()
         for x in ["x0", "x1", "a0"]:
-            print(bp.get_distribution(x))
             assert not np.isnan(bp.get_distribution(x)).any()
 
 

@@ -230,22 +230,19 @@ impl BPState {
             vec![Distribution::new(self.graph.var(var).multi, self.graph.nc, self.nmulti); n];
         u[0] = self.evidence[var].take_or_clone(clear_evidence);
         //  dbg!(&var);
-        //     dbg!(&u);
+
         for i in 0..n - 1 {
-            eprintln!("U loop");
             let (lower, upper) = u.split_at_mut(i + 1);
             upper[0].multiply_norm(std::iter::once(&lower[i]));
             upper[0].multiply_norm(std::iter::once(x[i]));
         }
-        eprintln!("After mul");
 
         for i in (0..n - 1).rev() {
-            eprintln!("HERE");
             let (lower, upper) = d.split_at_mut(i + 1);
-            lower[i].multiply_norm(std::iter::once(x[i]));
+            lower[i].multiply_norm(std::iter::once(x[i + 1]));
             lower[i].multiply_norm(std::iter::once(&upper[0]));
         }
-        //      dbg!(&d);
+
         for (i, e) in self.graph.var(var).edges.values().enumerate() {
             self.belief_from_var[*e] = u[i].clone();
             self.belief_from_var[*e].multiply_norm(std::iter::once(&d[i]));
@@ -254,7 +251,6 @@ impl BPState {
         self.var_state[var] = u[n - 1].clone();
         self.var_state[var].multiply_norm(std::iter::once(x[n - 1]));
         //   dbg!(&self.var_state[var]);
-        //   dbg!(&self.belief_from_var);
     }
     pub fn propagate_factor(&mut self, factor_id: FactorId, dest: &[VarId], clear_incoming: bool) {
         let factor = self.graph.factor(factor_id);
@@ -307,7 +303,7 @@ impl BPState {
     pub fn propagate_var(&mut self, var: VarId, clear_beliefs: bool) {
         self.propagate_var_t(var, false, clear_beliefs);
         //self.propagate_to_var(var, false);
-        // self.propagate_from_var_all(var, clear_beliefs);
+        //self.propagate_from_var_all(var, clear_beliefs);
     }
     pub fn propagate_all_vars(&mut self, clear_beliefs: bool) {
         for var_id in self.graph.range_vars() {
@@ -316,15 +312,9 @@ impl BPState {
     }
     pub fn propagate_loopy_step(&mut self, n_steps: u32, clear_beliefs: bool) {
         for i in 0..n_steps {
-            eprintln!("Iter {} ", i);
-            dbg!(clear_beliefs);
-            dbg!(&self.belief_to_var);
-            dbg!(&self.belief_from_var);
             for factor_id in self.graph.range_factors() {
                 self.propagate_factor_all(factor_id);
             }
-            dbg!(&self.belief_to_var);
-            dbg!(&self.belief_from_var);
             self.propagate_all_vars(clear_beliefs);
         }
     }
