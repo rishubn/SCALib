@@ -225,7 +225,7 @@ class BPState:
     @property
     def fg(self) -> FactorGraph:
         """The associated factor graph."""
-        self._fg
+        return self._fg
 
     def set_evidence(self, var: str, distribution: Optional[npt.NDArray[np.float64]]):
         r"""Sets prior distribution of a variable.
@@ -388,14 +388,6 @@ class BPState:
         """
         return self._inner.get_belief_from_var(var, factor)
 
-    def propagate_from_var(self, var: str, factor: str):
-        """TODO"""
-        return self._inner.propagate_from_var(var, factor, get_config())
-
-    def propagate_to_var(self, var: str, clear_evidence: bool = False):
-        """TODO"""
-        return self._inner.propagate_to_var(var, get_config(), clear_evidence)
-
     def propagate_var(self, var: str, clear_beliefs: bool = True):
         """Run belief propagation on variable var.
 
@@ -411,14 +403,6 @@ class BPState:
 
         """
         return self._inner.propagate_var(var, get_config(), clear_beliefs)
-
-    def propagate_factor_to_var(
-        self, factor: str, var: str, clear_beliefs: bool = True
-    ):
-        """TODO"""
-        return self._inner.propagate_factor_to_var(
-            factor, var, clear_beliefs, get_config()
-        )
 
     def propagate_factor(self, factor: str):
         """Run belief propagation on the given factor.
