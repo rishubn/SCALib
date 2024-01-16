@@ -344,6 +344,16 @@ class BPState:
         else:
             self._inner.set_state(var, distribution)
 
+    def set_belief_from_var(
+        self, var: str, factor: str, distribution: Optional[npt.NDArray[np.float64]]
+    ):
+        self._inner.set_belief_from_var(var, factor, distribution)
+
+    def set_belief_to_var(
+        self, var: str, factor: str, distribution: Optional[npt.NDArray[np.float64]]
+    ):
+        self._inner.set_belief_to_var(var, factor, distribution)
+
     def get_belief_to_var(
         self, var: str, factor: str
     ) -> Optional[npt.NDArray[np.float64]]:
@@ -417,6 +427,13 @@ class BPState:
 
         """
         return self._inner.propagate_factor_all(factor, get_config())
+
+    def propagate_factor_to_var(
+        self, factor: str, var: str, clear_beliefs: bool = True
+    ):
+        return self._inner.propagate_factor_to_var(
+            factor, var, clear_beliefs, get_config()
+        )
 
     def debug(self):
         """Debug-print the current state."""
